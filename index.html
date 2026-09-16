@@ -1,745 +1,654 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<!-- Важно: убираем referrer, чтобы внешние хостинги картинок (Wikimedia и др.) не блокировали запросы (403 Forbidden) при открытии локального HTML-файла на мобильном -->
-<meta name="referrer" content="no-referrer">
-<title>АРТ-панорама Екатеринбурга</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Провод — мессенджер</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--pink:#ff2d75;--hot:#d81159;--soft-pink:#ffe3ec;--pale:#fff5f8;--ink:#4a1228}
-*{box-sizing:border-box}
-html,body,#map{margin:0;padding:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden}
-body{background:var(--pale);color:var(--ink)}
-#map{background:#ffd5e5}
+  :root{
+    --bg:#12161c;
+    --panel:#1a202b;
+    --panel-2:#212836;
+    --paper:#ece6d6;
+    --accent:#4fa8a0;
+    --accent-dim:#3a7d77;
+    --amber:#e8b34f;
+    --text:#eceef2;
+    --text-dim:#8a93a6;
+    --danger:#e2665c;
+    --border:#2a3140;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior:none;
+  }
+  h1,h2,h3,.brand{font-family:'Space Grotesk',sans-serif;}
+  button{font-family:inherit;}
+  input{font-family:inherit;}
+  ::selection{background:var(--accent-dim);color:#fff;}
 
-/* Розовый фильтр на тайлы карты */
-.leaflet-tile-pane {
-  filter: sepia(0.35) hue-rotate(285deg) saturate(2.1) brightness(1.03) contrast(0.95);
-}
+  #authScreen, #appScreen{height:100vh;height:100dvh;}
+  .hidden{display:none !important;}
 
-/* Заголовок */
-.title-card{
-  position:absolute;
-  top:12px;
-  left:12px;
-  right:12px;
-  z-index:1000;
-  background:rgba(255,245,249,0.94);
-  border:1.5px solid #ff9ebb;
-  border-radius:20px;
-  box-shadow:0 8px 25px rgba(216,17,89,0.18);
-  backdrop-filter:blur(12px);
-  padding:14px 18px;
-  text-align:center;
-}
-.title-card h1{
-  margin:0;
-  font-size:18px;
-  font-weight:900;
-  color:var(--hot);
-  letter-spacing:-0.3px;
-  line-height:1.3;
-}
-.title-card .subtitle{
-  margin:4px 0 0 0;
-  font-size:12px;
-  font-weight:600;
-  color:#a04a6e;
-  letter-spacing:0.3px;
-}
+  /* ---------- auth ---------- */
+  #authScreen{
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    background:
+      radial-gradient(600px 400px at 15% 10%, rgba(79,168,160,0.10), transparent 60%),
+      radial-gradient(500px 380px at 85% 90%, rgba(232,179,79,0.08), transparent 60%),
+      var(--bg);
+  }
+  .auth-card{width:100%;max-width:380px;}
+  .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .logo-mark{width:28px;height:28px;flex:0 0 auto;}
+  .logo-mark svg{display:block;width:100%;height:100%;}
+  .brand{font-size:22px;font-weight:700;letter-spacing:-0.02em;}
+  .tagline{color:var(--text-dim);font-size:14px;margin:0 0 28px;}
 
-/* Маркеры */
-.art-marker{
-  width:36px;
-  height:36px;
-  border-radius:50% 50% 50% 4px;
-  transform:rotate(-45deg);
-  background:linear-gradient(135deg,#ff3377,#b80648);
-  border:2.5px solid #ffffff;
-  box-shadow:0 4px 12px rgba(184,6,72,0.45);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  transition:transform 0.15s ease;
-}
-.art-marker span{
-  transform:rotate(45deg);
-  font-size:17px;
-}
-.art-marker:active{
-  transform:rotate(-45deg) scale(1.15);
-}
+  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;}
+  .tab-btn{flex:1;padding:9px 0;border:none;background:transparent;color:var(--text-dim);border-radius:7px;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s, color .15s;}
+  .tab-btn.active{background:var(--accent);color:#0d1512;}
 
-/* Карточка Popup */
-.leaflet-popup-content-wrapper{
-  background:rgba(255,250,252,0.98);
-  border:1.5px solid #ff9ebb;
-  border-radius:18px;
-  box-shadow:0 10px 30px rgba(184,6,72,0.22);
-  padding:6px;
-}
-.leaflet-popup-tip{
-  background:#fff5f8;
-  border:1px solid #ff9ebb;
-}
-.popup-box{
-  width:240px;
-  color:var(--ink);
-}
-.popup-box h3{
-  margin:4px 0 6px 0;
-  color:var(--hot);
-  font-size:16px;
-  font-weight:800;
-}
-.popup-img{
-  width:100%;
-  height:135px;
-  object-fit:cover;
-  border-radius:12px;
-  margin:6px 0;
-  display:block;
-  background:#ffe0ed;
-}
-.popup-box p{
-  font-size:12px;
-  line-height:1.4;
-  margin:6px 0;
-  color:#552233;
-}
-.tag{
-  display:inline-block;
-  background:#ffe0ec;
-  color:var(--hot);
-  font-size:10px;
-  font-weight:800;
-  padding:3px 8px;
-  border-radius:8px;
-  margin-top:2px;
-}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:6px;}
+  .field input{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:11px 12px;border-radius:9px;font-size:15px;outline:none;transition:border-color .15s;}
+  .field input:focus{border-color:var(--accent);}
 
-.leaflet-control-zoom a{
-  background:#fff0f6!important;
-  color:var(--hot)!important;
-  border-color:#ffb5ce!important;
-  border-radius:10px!important;
-}
+  .primary-btn{width:100%;padding:12px 0;border:none;border-radius:9px;background:var(--accent);color:#0d1512;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px;transition:filter .15s, transform .05s;}
+  .primary-btn:hover{filter:brightness(1.08);}
+  .primary-btn:active{transform:scale(0.98);}
+  .primary-btn:disabled{opacity:.55;cursor:default;}
+
+  .auth-msg{min-height:18px;font-size:13px;margin-top:12px;color:var(--danger);}
+  .auth-msg.ok{color:var(--accent);}
+
+  /* ---------- app ---------- */
+  #appScreen{display:grid;grid-template-columns:320px 1fr;background:var(--bg);}
+
+  .sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;min-width:0;}
+  .sidebar-head{padding:16px 16px 12px;border-bottom:1px solid var(--border);}
+  .sidebar-head .top-row{display:flex;align-items:center;justify-content:space-between;}
+  .me-row{display:flex;align-items:center;gap:9px;min-width:0;}
+  .me-name{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .logout-btn{background:none;border:none;color:var(--text-dim);font-size:12.5px;cursor:pointer;padding:6px 8px;border-radius:6px;white-space:nowrap;}
+  .logout-btn:hover{color:var(--danger);background:rgba(226,102,92,0.08);}
+
+  /* --- search --- */
+  .search-wrap{
+    display:flex;align-items:center;gap:8px;
+    margin-top:12px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:8px 11px;
+    transition:border-color .15s;
+  }
+  .search-wrap:focus-within{border-color:var(--accent);}
+  .search-wrap svg{width:15px;height:15px;color:var(--text-dim);flex:0 0 auto;}
+  .search-wrap input{
+    flex:1;background:transparent;border:none;outline:none;
+    color:var(--text);font-size:14px;min-width:0;
+  }
+  .search-wrap input::placeholder{color:var(--text-dim);}
+  .search-clear{
+    background:none;border:none;color:var(--text-dim);cursor:pointer;
+    font-size:16px;line-height:1;padding:0 2px;display:none;
+  }
+  .search-clear.show{display:block;}
+
+  .search-results{padding:6px 8px;border-bottom:1px solid var(--border);}
+  .search-empty{color:var(--text-dim);font-size:12.5px;text-align:center;padding:14px 10px;}
+  .search-result{
+    display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:9px;cursor:pointer;
+  }
+  .search-result:hover{background:var(--panel-2);}
+  .search-result .avatar{width:32px;height:32px;font-size:13px;}
+  .search-result .person-name{font-size:14px;}
+
+  .list-scroll{flex:1;overflow-y:auto;padding:6px 8px;}
+
+  .person-row{display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:9px;cursor:pointer;transition:background .12s;}
+  .person-row:hover{background:var(--panel-2);}
+  .person-row.active{background:var(--panel-2);}
+  .avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#0d1512;flex:0 0 auto;}
+  .person-name{font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .person-sub{font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  .empty-hint{color:var(--text-dim);font-size:13px;text-align:center;padding:30px 20px;line-height:1.5;}
+
+  /* ---------- chat ---------- */
+  .chat-panel{display:flex;flex-direction:column;min-width:0;height:100%;}
+  .chat-header{display:flex;align-items:center;gap:11px;padding:13px 18px;border-bottom:1px solid var(--border);flex:0 0 auto;}
+  .back-btn{display:none;background:none;border:none;color:var(--text);width:30px;height:30px;border-radius:8px;cursor:pointer;align-items:center;justify-content:center;flex:0 0 auto;}
+  .back-btn svg{width:18px;height:18px;}
+  .back-btn:hover{background:var(--panel-2);}
+  .chat-title{font-size:15px;font-weight:600;}
+
+  .messages{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:2px;}
+  .day-divider{align-self:center;color:var(--text-dim);font-size:11.5px;background:var(--panel);padding:3px 10px;border-radius:20px;margin:14px 0 10px;}
+  .msg-row{display:flex;margin:3px 0;max-width:100%;}
+  .msg-row.mine{justify-content:flex-end;}
+  .bubble{max-width:min(460px,72%);padding:9px 13px;border-radius:14px;font-size:14.5px;line-height:1.4;word-wrap:break-word;white-space:pre-wrap;position:relative;}
+  .msg-row.theirs .bubble{background:var(--panel-2);color:var(--text);border-bottom-left-radius:4px;}
+  .msg-row.mine .bubble{background:var(--paper);color:#20241f;border-bottom-right-radius:4px;}
+
+  .bubble .meta{
+    display:flex;align-items:center;justify-content:flex-end;gap:4px;
+    font-size:10.5px;opacity:.6;margin-top:3px;
+  }
+  .bubble .meta .ticks{display:inline-flex;align-items:center;line-height:1;}
+  .bubble .meta .ticks svg{width:14px;height:10px;display:block;}
+  .bubble .meta .ticks.read{color:var(--accent);opacity:1;}
+
+  .empty-chat{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:14px;text-align:center;padding:20px;}
+
+  .composer{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--border);flex:0 0 auto;}
+  .composer input{flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:20px;font-size:14.5px;outline:none;}
+  .composer input:focus{border-color:var(--accent);}
+  .send-btn{width:42px;height:42px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:filter .15s, transform .05s;}
+  .send-btn:hover{filter:brightness(1.08);}
+  .send-btn:active{transform:scale(0.94);}
+  .send-btn svg{width:18px;height:18px;color:#0d1512;}
+
+  @media (max-width:760px){
+    #appScreen{grid-template-columns:1fr;position:relative;overflow:hidden;}
+    .sidebar{border-right:none;position:absolute;inset:0;transform:translateX(0);transition:transform .22s ease;background:var(--bg);z-index:2;}
+    .chat-panel{position:absolute;inset:0;transform:translateX(100%);transition:transform .22s ease;background:var(--bg);z-index:3;}
+    #appScreen.chat-open .sidebar{transform:translateX(-30%);}
+    #appScreen.chat-open .chat-panel{transform:translateX(0);}
+    .back-btn{display:flex;}
+  }
+
+  .list-scroll::-webkit-scrollbar,
+  .messages::-webkit-scrollbar{width:7px;}
+  .list-scroll::-webkit-scrollbar-thumb,
+  .messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
 </style>
 </head>
 <body>
 
-<div class="title-card">
-  <h1>АРТ-панорама Екатеринбурга</h1>
-  <p class="subtitle">Карта искусства</p>
+<!-- ================= AUTH ================= -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="logo-row">
+      <span class="logo-mark">
+        <svg viewBox="0 0 28 28" fill="none">
+          <circle cx="6" cy="14" r="4" fill="#4fa8a0"/>
+          <circle cx="22" cy="14" r="4" fill="#e8b34f"/>
+          <line x1="10" y1="14" x2="18" y2="14" stroke="#4fa8a0" stroke-width="2"/>
+        </svg>
+      </span>
+      <span class="brand">Провод</span>
+    </div>
+    <p class="tagline">Простой мессенджер по нику и паролю</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="login">Вход</button>
+      <button class="tab-btn" data-tab="register">Регистрация</button>
+    </div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label>Никнейм</label>
+        <input id="loginNick" autocomplete="username" placeholder="например, alex_99" required>
+      </div>
+      <div class="field">
+        <label>Пароль</label>
+        <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      </div>
+      <button class="primary-btn" type="submit">Войти</button>
+    </form>
+
+    <form id="registerForm" class="hidden">
+      <div class="field">
+        <label>Никнейм</label>
+        <input id="regNick" autocomplete="username" placeholder="3–20 символов, без пробелов" required>
+      </div>
+      <div class="field">
+        <label>Пароль</label>
+        <input id="regPass" type="password" autocomplete="new-password" placeholder="минимум 4 символа" required>
+      </div>
+      <div class="field">
+        <label>Повторите пароль</label>
+        <input id="regPass2" type="password" autocomplete="new-password" placeholder="••••••••" required>
+      </div>
+      <button class="primary-btn" type="submit">Создать аккаунт</button>
+    </form>
+
+    <div class="auth-msg" id="authMsg"></div>
+  </div>
 </div>
 
-<div id="map"></div>
+<!-- ================= APP ================= -->
+<div id="appScreen" class="hidden">
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="top-row">
+        <div class="me-row">
+          <div class="avatar" id="meAvatar"></div>
+          <div class="me-name" id="meName"></div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Выйти</button>
+      </div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+        </svg>
+        <input id="searchInput" placeholder="Найти по никнейму" autocomplete="off">
+        <button class="search-clear" id="searchClear" title="Очистить">×</button>
+      </div>
+    </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div id="searchResults" class="search-results hidden"></div>
+
+    <div class="list-scroll" id="chatList">
+      <div class="empty-hint">Пока нет диалогов.</div>
+    </div>
+  </div>
+
+  <div class="chat-panel">
+    <div id="chatHeaderEmpty" class="empty-chat">Выберите чат слева</div>
+
+    <div id="chatActive" class="hidden" style="display:contents;">
+      <div class="chat-header">
+        <button class="back-btn" id="backBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="avatar" id="partnerAvatar" style="width:32px;height:32px;font-size:13px;"></div>
+        <div class="chat-title" id="chatTitle"></div>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <input id="msgInput" placeholder="Написать сообщение…" autocomplete="off">
+        <button class="send-btn" id="sendBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <script>
-// Границы Екатеринбурга
-const bounds = L.latLngBounds([56.68, 60.37], [56.98, 60.84]);
+/* =========================================================
+   FIREBASE
+   ========================================================= */
+firebase.initializeApp({
+  databaseURL: "https://mess-f74a0-default-rtdb.firebaseio.com/"
+});
+const db = firebase.database();
 
-const map = L.map('map', {
-  center: [56.8375, 60.6065],
-  zoom: 13,
-  minZoom: 11,
-  maxZoom: 19,
-  maxBounds: bounds,
-  maxBoundsViscosity: 1.0,
-  zoomControl: false
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const NICK_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]{3,20}$/;
+const LS_KEY = "provod_auth";
+
+async function hashPassword(pw){
+  try{
+    if (window.crypto && crypto.subtle){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+  }catch(e){}
+  let h = 0;
+  for (let i=0;i<pw.length;i++){ h = (Math.imul(31,h) + pw.charCodeAt(i))|0; }
+  return 'fb_' + (h>>>0).toString(16);
+}
+
+function saveLocalAuth(nickname, passwordHash){
+  localStorage.setItem(LS_KEY, JSON.stringify({nickname, passwordHash}));
+}
+function clearLocalAuth(){ localStorage.removeItem(LS_KEY); }
+function getLocalAuth(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY) || "null"); }catch(e){ return null; }
+}
+
+function chatIdFor(a, b){ return [a,b].sort().join("__"); }
+
+const HUE_PALETTE = ['#4fa8a0','#e8b34f','#c97a6d','#7c9ed9','#8fb87a','#c78fce','#5fb3c9'];
+function colorFor(name){
+  let h = 0;
+  for (let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+  return HUE_PALETTE[h % HUE_PALETTE.length];
+}
+function initialFor(name){ return (name || '?').trim().charAt(0).toUpperCase(); }
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* галочки */
+function ticksHtml(mine, msg){
+  if (!mine) return '';
+  // если у собеседника нет данных о прочтении — считаем, что доставлено
+  const read = !!msg.readAt;
+  const cls = read ? 'ticks read' : 'ticks';
+  if (read){
+    // двойная галочка
+    return `<span class="${cls}" title="Прочитано"><svg viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5.5L4.5 9L10 2"/><path d="M6 5.5L9.5 9L15 2"/></svg></span>`;
+  }
+  // одинарная галочка (доставлено)
+  return `<span class="${cls}" title="Доставлено"><svg viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5L6 9.5L13 2"/></svg></span>`;
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let currentUser = null;
+let currentPartner = null;
+let messagesRef = null;
+let messagesCb = null;
+let chatListRef = null;
+let searchUsersRef = null;
+let allUsers = [];
+let userChatsMap = {};
+
+/* =========================================================
+   AUTH SCREEN
+   ========================================================= */
+const authMsgEl = document.getElementById('authMsg');
+function setAuthMsg(text, ok){
+  authMsgEl.textContent = text || '';
+  authMsgEl.classList.toggle('ok', !!ok);
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const isLogin = btn.dataset.tab === 'login';
+    document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+    document.getElementById('registerForm').classList.toggle('hidden', isLogin);
+    setAuthMsg('');
+  });
 });
 
-L.control.zoom({ position: 'bottomright' }).addTo(map);
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const nickname = document.getElementById('loginNick').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const btn = e.target.querySelector('button');
+  btn.disabled = true; setAuthMsg('Проверяем…');
+  try{
+    const snap = await db.ref('users/'+nickname).get();
+    if (!snap.exists()) throw new Error('Такого пользователя нет');
+    const hash = await hashPassword(password);
+    if (snap.val().passwordHash !== hash) throw new Error('Неверный пароль');
+    saveLocalAuth(nickname, hash);
+    enterApp(nickname);
+  }catch(err){
+    setAuthMsg(err.message || 'Ошибка входа');
+  }finally{
+    btn.disabled = false;
+  }
+});
 
-// Слой карты OpenStreetMap (светлый, с розовым CSS фильтром поверх)
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© OpenStreetMap'
-}).addTo(map);
+document.getElementById('registerForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const nickname = document.getElementById('regNick').value.trim();
+  const password = document.getElementById('regPass').value;
+  const password2 = document.getElementById('regPass2').value;
+  const btn = e.target.querySelector('button');
 
-// Кастомный маркер
-function createIcon(emoji = '🎨') {
-  return L.divIcon({
-    className: '',
-    html: `<div class="art-marker"><span>${emoji}</span></div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
-    popupAnchor: [0, -32]
+  if (!NICK_RE.test(nickname)){
+    setAuthMsg('Ник: 3–20 символов, буквы/цифры/подчёркивание, без пробелов'); return;
+  }
+  if (password.length < 4){ setAuthMsg('Пароль должен быть не короче 4 символов'); return; }
+  if (password !== password2){ setAuthMsg('Пароли не совпадают'); return; }
+
+  btn.disabled = true; setAuthMsg('Создаём аккаунт…');
+  try{
+    const snap = await db.ref('users/'+nickname).get();
+    if (snap.exists()) throw new Error('Этот ник уже занят');
+    const hash = await hashPassword(password);
+    await db.ref('users/'+nickname).set({passwordHash: hash, createdAt: Date.now()});
+    saveLocalAuth(nickname, hash);
+    enterApp(nickname);
+  }catch(err){
+    setAuthMsg(err.message || 'Ошибка регистрации');
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+(function tryAutoLogin(){
+  const saved = getLocalAuth();
+  if (!saved || !saved.nickname || !saved.passwordHash){ return; }
+  db.ref('users/'+saved.nickname).get()
+    .then(snap=>{
+      if (snap.exists() && snap.val().passwordHash === saved.passwordHash){
+        enterApp(saved.nickname);
+      } else {
+        clearLocalAuth();
+      }
+    })
+    .catch(()=>{ enterApp(saved.nickname); });
+})();
+
+/* =========================================================
+   ENTER APP
+   ========================================================= */
+function enterApp(nickname){
+  currentUser = nickname;
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.remove('hidden');
+  document.getElementById('meName').textContent = nickname;
+  const meAv = document.getElementById('meAvatar');
+  meAv.textContent = initialFor(nickname);
+  meAv.style.background = colorFor(nickname);
+  listenChatList();
+  listenAllUsers();
+}
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  if (chatListRef) chatListRef.off();
+  if (searchUsersRef) searchUsersRef.off();
+  if (messagesRef && messagesCb) messagesRef.off('value', messagesCb);
+  clearLocalAuth();
+  currentUser = null; currentPartner = null;
+  document.getElementById('appScreen').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('loginPass').value = '';
+  setAuthMsg('');
+  // очистить поиск
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchResults').classList.add('hidden');
+  document.getElementById('searchClear').classList.remove('show');
+});
+
+/* =========================================================
+   СПИСОК ЧАТОВ
+   ========================================================= */
+function listenChatList(){
+  if (chatListRef) chatListRef.off();
+  chatListRef = db.ref('userChats/' + currentUser);
+  chatListRef.on('value', snap=>{
+    userChatsMap = snap.val() || {};
+    renderChatList(userChatsMap);
   });
 }
 
-// 50 объектов Екатеринбурга; фото подбираются отдельно для каждого объекта
-
-const externalPhotos = {
-  "Памятник Клавиатуре": ["https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Monument_to_the_keyboard%2C_Ekaterinburg_%283%29.jpg/960px-Monument_to_the_keyboard%2C_Ekaterinburg_%283%29.jpg"],
-  "Памятник The Beatles": ["https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/%D0%9F%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA_The_Beatles_%28%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3%29.jpg/960px-%D0%9F%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA_The_Beatles_%28%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3%29.jpg"],
-  "Человек-невидимка": ["https://n1s1.hsmedia.ru/8e/88/c6/8e88c6a8abba43c44fb18ba9d11b143c/2000x1500_0xac120003_14788406961667814732.jpeg"],
-  "Супрематический крест": ["https://nashural.ru/assets/uploads/krest-lampas-logo.jpg"],
-  "Банка сгущенки и супа Campbell's": ["https://www.justmedia.ru/upload/news/67/0e/670e096c76b76687152577_1400_1200.jpg"],
-  "Индустриальный младенец": ["https://cdn.bg.ru/bg.ru/post_image-image/UgTmS3huiqHJnt15eALEjA-original_opt.webp"],
-  "Памятник Гене Букину": ["https://dynamic-media-cdn.tripadvisor.com/media/photo-o/22/b0/1b/88/caption.jpg?h=1100&s=1&w=1100"],
-  "Памятник Высоцкому и Влади": ["https://dimg04.c-ctrip.com/images/02Y0j12000gee4orb0C90_R_1080_808_Q90.jpg"],
-  "Памятник Любопытству": ["https://cdn-processed.tmatic.travel/601b72bb-4a4c-4cd2-929a-3da1d1530a31.jpg?1789319712159="],
-  "Памятник Влюбленным": ["https://unplaces.ru/Pictures/Russia/Sverdlovsk/1015_LoversEkat/LoversEkat_Small_Main_01.jpg", "https://unplaces.ru/Pictures/Russia/Sverdlovsk/1015_LoversEkat/LoversEkat_Small_Main_02.jpg"],
-  "Каслинский чугунный павильон": ["https://fra1.digitaloceanspaces.com/blog.ruskontur/wp-content/uploads/2023/03/16083600/kaslinskii-pavilon-62c80e6462f2f.jpg"],
-  "Арт-галерея Ельцин Центра": ["https://yeltsin.ru/imageurl/c1600x900/archive/image/JaqVZSyEGzMnq0D0JyOdn0S3GQVX/uploads/upload/2024/12/19/AX6A5599.jpg"],
-  "Белая башня": ["https://www.yabloko.ru/files/inline-images/1280px-White_Tower_in_Yekaterinburg_-_2.jpeg"],
-  "Памятник Банкиру и Автомобилисту": ["https://s3.fotokto.ru/photo/full/540/5406374.jpg"],
-  "Коробейник (Купец)": ["https://amy.ru/assets/img/content/20200323_15.jpg"],
-  "Мурал «Бумажный самолетик»": ["https://streetartcities.com/media/e/e667504e-d60c-4122-95ba-e74dd51d8d4b/2048.jpg"],
-  "Арт-кластер «Л52»": ["https://globalcity.info/assets/a3f9b096/images/44/2022/11/84c6acfdd7dc98e644126d7fba0e50ee.jpg/680.jpg"],
-  "Памятник Майклу Джексону": ["https://www.etovidel.net/appended_files/big/4ff827710fdeb.jpg"],
-  "Городок Чекистов": ["https://commons.wikimedia.org/wiki/Special:FilePath/%D0%93%D0%BE%D1%80%D0%BE%D0%B4%D0%BE%D0%BA_%D1%87%D0%B5%D0%BA%D0%B8%D1%81%D1%82%D0%BE%D0%B2_%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3_30.JPG?width=1000", "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%93%D0%BE%D1%80%D0%BE%D0%B4%D0%BE%D0%BA_%D1%87%D0%B5%D0%BA%D0%B8%D1%81%D1%82%D0%BE%D0%B2_%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3_31.JPG?width=1000"],
-  "Барельеф Плотинки": ["https://nashural.ru/assets/uploads/IMG_9725.jpg"],
-  "Дом Севастьянова": ["https://nashural.ru/assets/uploads/dom-sevastyanova.jpg"],
-  "Роспись «Поцелуй»": ["https://fileshare.kaverafisha.ru/storage/origin/2024/01/31/__0672aad0ae80fa177b0cb5f580637d1b.webp"],
-  "Памятник Первому паровозу": ["https://panevin.ru/uploads/photo/2018/parovoz-pamyatnik_kch4-328_i_pamyatnik_small.webp"],
-  "Скульптура «Пассажиры»": ["https://panevin.ru/uploads/photo/2018/skulptura_passazhiri_small.webp"],
-  "Памятник Татищеву и де Геннину": ["https://russo-travel.ru/upload/medialibrary/392/392600e5c546258ac3970a3f182e6740.jpg"],
-  "Фонтан «Каменный цветок»": ["https://topgid.net/uploads/posts/2020-02/1582121824_fontan-kamennyj-cvetok.jpg"],
-  "Скульптурный парк Литературного квартала": ["https://www.dk.ru/system/images/news/000/962/420_x_large_new_origin_copyright.jpg"],
-  "Памятник изобретателю радио Попову": ["https://commons.wikimedia.org/wiki/Special:FilePath/A.%20S.%20Popov.jpg?width=1000"],
-  "Мурал «Девушка с совой»": ["https://cdn2.tu-tu.ru/image/pagetree_node_data/1/c185a0d62c3344983809dc342d8871d5/"],
-  "Екатеринбургский Цирк": ["https://commons.wikimedia.org/wiki/Special:FilePath/Yekaterinburg%20Circus%202024-07%201720261372.jpg?width=1000"],
-  "Арт-объекты Парка Маяковского": ["https://api.parkseason.ru/images/styles/1242_828/a3/87/16ab94f4843748d5663433f4b652dff6628fb05e9de38245913496.jpg"],
-  "Мурал «Уральский малахит»": ["https://www.justmedia.ru/upload/newsdata/content/5d/2d/5d2dc21a69593605691596.jpg"],
-  "Памятник Якову Свердлову": ["https://krasivye-mesta.ru/img/pamyatnik-sverdlovu-ekaterinburg.jpg"],
-  "Екатеринбургский Оперный театр": ["https://mf.b37mrtl.ru/rbthmedia/images/2020.07/original/5f227b2815e9f93d970e3972.jpg"],
-  "Скульптура «Седой Урал»": ["https://vashehobbyrf.ru/imgfiles/defense-square06.jpg"],
-  "Памятник Челнокам": ["https://avatars.mds.yandex.net/get-pdb/38069/2624a290-a451-4c12-9dce-ac232a41bbdb/s1200"],
-  "Мурал «Кружева» на Уралмаше": ["https://mir-s3-cdn-cf.behance.net/project_modules/1400_webp/35c570184764417.655788df7a54e.jpg"],
-  "Памятник Черному тюльпану": ["https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Black_tulip_memorial%2C_Yekaterinburg_%2812%29.jpg/960px-Black_tulip_memorial%2C_Yekaterinburg_%2812%29.jpg"],
-  "Дом Метенкова (Музей фотографии)": ["https://static.tildacdn.com/tild3264-6633-4665-b336-323464353332/1___.jpg"],
-  "Скульптура «Друзья»": ["https://media-cdn.tripadvisor.com/media/photo-s/21/bb/f6/45/caption.jpg"],
-  "Усадьба Расторгуевых — Харитоновых": ["https://nashural.ru/assets/uploads/5P4A3727.jpg"],
-  "Ротонда Харитоновского сада": ["https://kartin.papik.pro/uploads/posts/2023-07/1689182214_kartin-papik-pro-p-kartinki-kharitonovskii-park-10.jpg"],
-  "Мост влюбленных через Исеть": ["https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Ekat_bridge_of_love.JPG/960px-Ekat_bridge_of_love.JPG"],
-  "Скульптура «Автомобильчик»": ["https://s3.fotokto.ru/photo/full/715/7150366.jpg", "https://s3.fotokto.ru/photo/full/540/5406374.jpg"],
-  "Памятник святой Екатерине": ["https://ekaterinburg-eparhia.ru/wp-content/uploads/2025/12/1n0a4882-scaled.jpeg"],
-  "Мурал «Свет внутри»": ["https://www.justmedia.ru/upload/newsdata/content/65/a6/65a64c9993f0c208010234.jpg"],
-  "Скульптура «Берлинский медведь»": ["https://www.etovidel.net/upload/iblock/831/zydinqio09in03n4ac2qu4sezpyh1891.jpg"],
-  "Скульптура «Остап Бендер и Киса Воробьянинов»": ["https://unplaces.ru/Pictures/Russia/Sverdlovsk/0978_BenderEkat/BenderEkat_Small_Main_01.jpg"],
-  "Мозаичное панно «Освобожденный труд»": ["https://static.tildacdn.com/tild3165-6461-4366-a237-363961653133/-31.jpg"],
-  "Мурал «Космонавт»": ["https://content.foto.my.mail.ru/mail/sasin62/60103/h-60107.jpg"]
-};
-
-const photoPages = {};
-
-function getPhotoCandidates(item){
-  const a=[];
-  if (externalPhotos[item.name]) a.push(externalPhotos[item.name]);
-  if (item.img && !/wikipedia\.org|wikimedia\.org/i.test(item.img)) a.push(item.img);
-  return [...new Set(a)];
-}
-
-const arts = [
-  {
-    name: "Памятник Клавиатуре",
-    coords: [56.8324, 60.6086],
-    tag: "Лэнд-арт",
-    emoji: "⌨️",
-    desc: "Культовая бетонная клавиатура QWERTY на набережной Исети художника Анатолия Вяткина.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Monument_to_keyboard.jpg/640px-Monument_to_keyboard.jpg"
-  },
-  {
-    name: "Памятник The Beatles",
-    coords: [56.8328, 60.6075],
-    tag: "Скульптура",
-    emoji: "🎸",
-    desc: "Чугунный контур ливерпульской четверки и стена с граффити на набережной Исети.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/The_Beatles_monument_in_Yekaterinburg.jpg/640px-The_Beatles_monument_in_Yekaterinburg.jpg"
-  },
-  {
-    name: "Человек-невидимка",
-    coords: [56.8327, 60.6081],
-    tag: "Концептуализм",
-    emoji: "👣",
-    desc: "Бронзовая плита с отпечатками босых ног персонажа Герберта Уэллса.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Invisible_Man_monument_Yekaterinburg.JPG/640px-Invisible_Man_monument_Yekaterinburg.JPG"
-  },
-  {
-    name: "Супрематический крест",
-    coords: [56.8856, 60.5975],
-    tag: "Стенограффия",
-    emoji: "⬛",
-    desc: "Гигантская каллиграфическая роспись Покраса Лампаса на Площади Первой Пятилетки.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Suprematist_cross_%28Pokras_Lampas%29_1.jpg/640px-Suprematist_cross_%28Pokras_Lampas%29_1.jpg"
-  },
-  {
-    name: "Банка сгущенки и супа Campbell's",
-    coords: [56.8358, 60.6133],
-    tag: "Поп-арт",
-    emoji: "🥫",
-    desc: "Знаменитые расписанные цистерны во дворе на улице Малышева (фестиваль Стенограффия).",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Condensed_milk_and_Campbell_can_in_Yekaterinburg.jpg/640px-Condensed_milk_and_Campbell_can_in_Yekaterinburg.jpg"
-  },
-  {
-    name: "Индустриальный младенец",
-    coords: [56.8385, 60.5408],
-    tag: "Паблик-арт ЧО",
-    emoji: "👶",
-    desc: "Трехметровая голова младенца из алюминия на глади Верх-Исетского пруда.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Industrial_Infant_sculpture_Yekaterinburg.jpg/640px-Industrial_Infant_sculpture_Yekaterinburg.jpg"
-  },
-  {
-    name: "Памятник Гене Букину",
-    coords: [56.8356, 60.6138],
-    tag: "Городская скульптура",
-    emoji: "👞",
-    desc: "Бронзовая фигура продавца обуви из сериала «Счастливы вместе» на пешеходной улице Вайнера.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Gena_Bukin_monument_in_Yekaterinburg.jpg/640px-Gena_Bukin_monument_in_Yekaterinburg.jpg"
-  },
-  {
-    name: "Памятник Высоцкому и Влади",
-    coords: [56.8360, 60.6147],
-    tag: "Скульптура",
-    emoji: "🎶",
-    desc: "Бронзовые Владимир Высоцкий с гитарой и Марина Влади около небоскреба «Высоцкий».",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Monument_to_Vysotsky_and_Vladie_in_Yekaterinburg.jpg/640px-Monument_to_Vysotsky_and_Vladie_in_Yekaterinburg.jpg"
-  },
-  {
-    name: "Памятник Любопытству",
-    coords: [56.8365, 60.6140],
-    tag: "Стрит-арт",
-    emoji: "👀",
-    desc: "Дверь с глазком, в который заглядывают две любопытные фигуры.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Monument_to_curiosity.jpg/640px-Monument_to_curiosity.jpg"
-  },
-  {
-    name: "Памятник Влюбленным",
-    coords: [56.8340, 60.5985],
-    tag: "Скульптура",
-    emoji: "💑",
-    desc: "Трогательная фигура влюбленной босоногой пары на перекрестке улиц Вайнера и Малышева.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Vainer_street_Lovers.jpg/640px-Vainer_street_Lovers.jpg"
-  },
-  {
-    name: "Каслинский чугунный павильон",
-    coords: [56.8382, 60.6058],
-    tag: "Шедевр литья",
-    emoji: "🏛️",
-    desc: "Уникальный павильон из ажурного чугуна, получивший Гран-при на выставке в Париже в 1900 г.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Kasli_iron_pavilion.jpg/640px-Kasli_iron_pavilion.jpg"
-  },
-  {
-    name: "Арт-галерея Ельцин Центра",
-    coords: [56.8445, 60.5905],
-    tag: "Современный арт",
-    emoji: "✨",
-    desc: "Паблик-арт объекты, медиафасад и уличные инсталляции на набережной Городского пруда.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Yeltsin_Center_facade.jpg/640px-Yeltsin_Center_facade.jpg"
-  },
-  {
-    name: "Белая башня",
-    coords: [56.8906, 60.5794],
-    tag: "Конструктивизм",
-    emoji: "🗼",
-    desc: "Памятник конструктивизма на Уралмаше, превращенный в культурную площадку и арт-пространство.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/White_Tower_Uralmash.jpg/640px-White_Tower_Uralmash.jpg"
-  },
-  {
-    name: "Памятник Банкиру и Автомобилисту",
-    coords: [56.8350, 60.5980],
-    tag: "Городская скульптура",
-    emoji: "🎩",
-    desc: "Скульптурные персонажи старого Екатеринбурга на пешеходной улице Вайнера.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Vainer_street_banker.jpg/640px-Vainer_street_banker.jpg"
-  },
-  {
-    name: "Коробейник (Купец)",
-    coords: [56.8344, 60.5982],
-    tag: "Скульптура",
-    emoji: "🧺",
-    desc: "Бронзовый купец с коробом флакончиков, предлагающий потереть флакон на счастье.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Korobeinik_monument_Vainer.jpg/640px-Korobeinik_monument_Vainer.jpg"
-  },
-  {
-    name: "Мурал «Бумажный самолетик»",
-    coords: [56.8398, 60.6138],
-    tag: "Стрит-арт",
-    emoji: "✈️",
-    desc: "Масштабная роспись на торце исторического здания типографии «Гранит».",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Yekaterinburg_mural_street_art.jpg/640px-Yekaterinburg_mural_street_art.jpg"
-  },
-  {
-    name: "Арт-кластер «Л52»",
-    coords: [56.8402, 60.6275],
-    tag: "Арт-пространство",
-    emoji: "🏢",
-    desc: "Дом-коммуна Госпромурала на Ленина 52, центр уличного искусства и выставок.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Lenina_52_Yekaterinburg.jpg/640px-Lenina_52_Yekaterinburg.jpg"
-  },
-  {
-    name: "Памятник Майклу Джексону",
-    coords: [56.8335, 60.6001],
-    tag: "Скульптура",
-    emoji: "🕺",
-    desc: "Двухметровый бронзовый памятник королю поп-музыки на улице Вайнера.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Michael_Jackson_monument_in_Yekaterinburg.jpg/640px-Michael_Jackson_monument_in_Yekaterinburg.jpg"
-  },
-  {
-    name: "Городок Чекистов",
-    coords: [56.8415, 60.6288],
-    tag: "Арт-архитектура",
-    emoji: "🧱",
-    desc: "Легендарный памятник советского авангарда с круглым корпусом гостиницы «Исеть».",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Iset_hotel_Chekist_town.jpg/640px-Iset_hotel_Chekist_town.jpg"
-  },
-  {
-    name: "Барельеф Плотинки",
-    coords: [56.8386, 60.6052],
-    tag: "Памятник",
-    emoji: "⚙️",
-    desc: "Историческое сердце города — плотина Городского пруда и монументальный барельеф заводам.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Plotinka_Dam_Yekaterinburg.jpg/640px-Plotinka_Dam_Yekaterinburg.jpg"
-  },
-  {
-    name: "Дом Севастьянова",
-    coords: [56.8394, 60.6074],
-    tag: "Неоготика",
-    emoji: "🏰",
-    desc: "Самый сказочный дворец Екатеринбурга в бело-бирюзовых и розовых тонах.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Sevastianov_House_Ekaterinburg.jpg/640px-Sevastianov_House_Ekaterinburg.jpg"
-  },
-  {
-    name: "Роспись «Поцелуй»",
-    coords: [56.8315, 60.6050],
-    tag: "Стрит-арт",
-    emoji: "💋",
-    desc: "Яркий уличный арт во дворах на улице Горького вблизи набережной.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Street_art_in_Yekaterinburg.jpg/640px-Street_art_in_Yekaterinburg.jpg"
-  },
-  {
-    name: "Памятник Первому паровозу",
-    coords: [56.8576, 60.6015],
-    tag: "История",
-    emoji: "🚂",
-    desc: "Макет паровоза уральских изобретателей отца и сына Черепановых у старого вокзала.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Cherepanov_steam_locomotive_monument.jpg/640px-Cherepanov_steam_locomotive_monument.jpg"
-  },
-  {
-    name: "Скульптура «Пассажиры»",
-    coords: [56.8570, 60.6025],
-    tag: "Скульптура",
-    emoji: "🧳",
-    desc: "Бронзовые фигуры пассажиров, начальника станции и путейцев на площади старого вокзала.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Old_Railway_station_sculptures_Ekb.jpg/640px-Old_Railway_station_sculptures_Ekb.jpg"
-  },
-  {
-    name: "Памятник Татищеву и де Геннину",
-    coords: [56.8378, 60.6070],
-    tag: "Монумент",
-    emoji: "⚔️",
-    desc: "Памятник основателям Екатеринбурга на площади Труда.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Monument_to_Tatishchev_and_de_Gennin.jpg/640px-Monument_to_Tatishchev_and_de_Gennin.jpg"
-  },
-  {
-    name: "Фонтан «Каменный цветок»",
-    coords: [56.8380, 60.6080],
-    tag: "Фонтан",
-    emoji: "🌸",
-    desc: "Знаменитый чугунный фонтан в виде сказочного цветка из уральских сказов Бажова.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Stone_Flower_Fountain_Yekaterinburg.jpg/640px-Stone_Flower_Fountain_Yekaterinburg.jpg"
-  },
-  {
-    name: "Скульптурный парк Литературного квартала",
-    coords: [56.8447, 60.6105],
-    tag: "Парк скульптур",
-    emoji: "📖",
-    desc: "Уютные памятники писателям Решетникову, Мамину-Сибиряку и чеховской «Даме с собачкой».",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Literary_Quarter_Yekaterinburg.jpg/640px-Literary_Quarter_Yekaterinburg.jpg"
-  },
-  {
-    name: "Памятник изобретателю радио Попову",
-    coords: [56.8389, 60.6100],
-    tag: "Скульптура",
-    emoji: "📻",
-    desc: "Уютный сквер с бронзовой скульптурой А.С. Попова рядом с главпочтамтом.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Popov_monument_Yekaterinburg.jpg/640px-Popov_monument_Yekaterinburg.jpg"
-  },
-  {
-    name: "Мурал «Девушка с совой»",
-    coords: [56.8285, 60.6030],
-    tag: "Стрит-арт",
-    emoji: "🦉",
-    desc: "Сказочный уличный рисунок на улице 8 Марта в сторону цирка.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Streetart_owl_Ekaterinburg.jpg/640px-Streetart_owl_Ekaterinburg.jpg"
-  },
-  {
-    name: "Екатеринбургский Цирк",
-    coords: [56.8258, 60.6053],
-    tag: "Архитектура",
-    emoji: "🎪",
-    desc: "Уникальный ажурный решетчатый купол цирка высотой 50 метров на берегу Исети.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Yekaterinburg_Circus_Dome.jpg/640px-Yekaterinburg_Circus_Dome.jpg"
-  },
-  {
-    name: "Арт-объекты Парка Маяковского",
-    coords: [56.8060, 60.6385],
-    tag: "Парк искусств",
-    emoji: "🎡",
-    desc: "Современные скульптуры, кинетические ветровые арт-объекты и арт-резиденция ЦПКиО.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Mayakovsky_Park_Yekaterinburg.jpg/640px-Mayakovsky_Park_Yekaterinburg.jpg"
-  },
-  {
-    name: "Мурал «Уральский малахит»",
-    coords: [56.8420, 60.6480],
-    tag: "Стрит-арт",
-    emoji: "💎",
-    desc: "Гигантский геометрический узор в малахитовых тонах на проспекте Ленина около УрФУ.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Mural_Malachite_Ekaterinburg.jpg/640px-Mural_Malachite_Ekaterinburg.jpg"
-  },
-  {
-    name: "Памятник Якову Свердлову",
-    coords: [56.8398, 60.6205],
-    tag: "Монумент",
-    emoji: "🗿",
-    desc: "Экспрессивная модернистская скульптура 1927 года напротив Оперного театра.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Sverdlov_monument_in_Yekaterinburg.jpg/640px-Sverdlov_monument_in_Yekaterinburg.jpg"
-  },
-  {
-    name: "Екатеринбургский Оперный театр",
-    coords: [56.8390, 60.6200],
-    tag: "Архитектура",
-    emoji: "🎭",
-    desc: "Пышное необарокко с фигурами муз и богатой лепниной 1912 года постройки.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Yekaterinburg_Opera_and_Ballet_Theatre.jpg/640px-Yekaterinburg_Opera_and_Ballet_Theatre.jpg"
-  },
-  {
-    name: "Скульптура «Седой Урал»",
-    coords: [56.8395, 60.6350],
-    tag: "Монумент",
-    emoji: "⚔️",
-    desc: "Величественный исполин с мечом на площади Обороны.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Sedoy_Ural_monument.jpg/640px-Sedoy_Ural_monument.jpg"
-  },
-  {
-    name: "Мурал «Космонавт»",
-    coords: [56.8450, 60.5840],
-    tag: "Стрит-арт",
-    emoji: "👨‍🚀",
-    desc: "Огромное граффити космонавта на улице Бориса Ельцина.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Cosmonaut_street_art.jpg/640px-Cosmonaut_street_art.jpg"
-  },
-  {
-    name: "Мозаичное панно «Освобожденный труд»",
-    coords: [56.8370, 60.6010],
-    tag: "Мозаика",
-    emoji: "🎨",
-    desc: "Советская монументальная мозаика из цветной смальты в центре города.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Soviet_mosaic_Yekaterinburg.jpg/640px-Soviet_mosaic_Yekaterinburg.jpg"
-  },
-  {
-    name: "Скульптура «Остап Бендер и Киса Воробьянинов»",
-    coords: [56.8305, 60.6070],
-    tag: "Скульптура",
-    emoji: "🪑",
-    desc: "Герои романа «12 стульев» с тем самым стулом на улице Белинского.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Ostap_Bender_sculpture_Ekb.jpg/640px-Ostap_Bender_sculpture_Ekb.jpg"
-  },
-  {
-    name: "Памятник Челнокам",
-    coords: [56.8830, 60.5280],
-    tag: "Городской памятник",
-    emoji: "🛍️",
-    desc: "Первый в России памятник предпринимателям-челнокам 90-х у рынка «Таганский ряд».",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Shuttle_traders_monument_Ekb.jpg/640px-Shuttle_traders_monument_Ekb.jpg"
-  },
-  {
-    name: "Мурал «Кружева» на Уралмаше",
-    coords: [56.8885, 60.6030],
-    tag: "Стрит-арт",
-    emoji: "🕸️",
-    desc: "Нежнейший белый орнамент кружев на торце кирпичного здания фестиваля Стенограффия.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Lace_mural_Uralmash.jpg/640px-Lace_mural_Uralmash.jpg"
-  },
-  {
-    name: "Памятник Черному тюльпану",
-    coords: [56.8465, 60.6190],
-    tag: "Мемориал",
-    emoji: "🌷",
-    desc: "Экспрессивный мемориал воинам с сидящей фигурой бойца на площади Советской Армии.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Black_Tulip_memorial_Yekaterinburg.jpg/640px-Black_Tulip_memorial_Yekaterinburg.jpg"
-  },
-  {
-    name: "Дом Метенкова (Музей фотографии)",
-    coords: [56.8400, 60.6110],
-    tag: "Деревянное зодчество",
-    emoji: "📷",
-    desc: "Живописный деревянный особняк с резными наличниками на перекрестке Карла Либкнехта и Первомайской.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Metenkov_House_Yekaterinburg.jpg/640px-Metenkov_House_Yekaterinburg.jpg"
-  },
-  {
-    name: "Скульптура «Друзья»",
-    coords: [56.8350, 60.6030],
-    tag: "Скульптура",
-    emoji: "🤝",
-    desc: "Бронзовая композиция кузнеца с собакой и лошадью на улице Вайнера.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Lefthander_monument_Vainer.jpg/640px-Lefthander_monument_Vainer.jpg"
-  },
-  {
-    name: "Усадьба Расторгуевых — Харитоновых",
-    coords: [56.8465, 60.6125],
-    tag: "Классицизм",
-    emoji: "🏛️",
-    desc: "Величественный белый ансамбль на Вознесенской горке с круглым парковым озером и ротондой.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Rastorguev-Kharitonov_Palace_Ekaterinburg.jpg/640px-Rastorguev-Kharitonov_Palace_Ekaterinburg.jpg"
-  },
-  {
-    name: "Ротонда Харитоновского сада",
-    coords: [56.8480, 60.6145],
-    tag: "Парковый арт",
-    emoji: "🕊️",
-    desc: "Белоснежная купольная ротонда на острове пруда Харитоновского парка.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Kharitonov_Garden_Rotunda.jpg/640px-Kharitonov_Garden_Rotunda.jpg"
-  },
-  {
-    name: "Мост влюбленных через Исеть",
-    coords: [56.8318, 60.6070],
-    tag: "Городская романтика",
-    emoji: "🔒",
-    desc: "Пешеходный мост на улице Карла Маркса, увешанный сотнями цветных замочков любви.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Lovers_Bridge_Iset_Ekaterinburg.jpg/640px-Lovers_Bridge_Iset_Ekaterinburg.jpg"
-  },
-  {
-    name: "Скульптура «Автомобильчик»",
-    coords: [56.8338, 60.5985],
-    tag: "Скульптура",
-    emoji: "🚗",
-    desc: "Кабриолет начала XX века с водителем, любимое место для фотосессий на Вайнера.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Retro_car_monument_Vainer.jpg/640px-Retro_car_monument_Vainer.jpg"
-  },
-  {
-    name: "Памятник святой Екатерине",
-    coords: [56.8384, 60.6088],
-    tag: "Скульптура",
-    emoji: "👑",
-    desc: "Бронзовая фигура покровительницы города на площади Труда у фонтана «Каменный цветок».",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Saint_Catherine_monument_Yekaterinburg.jpg/640px-Saint_Catherine_monument_Yekaterinburg.jpg"
-  },
-  {
-    name: "Мурал «Свет внутри»",
-    coords: [56.8340, 60.6150],
-    tag: "Стрит-арт",
-    emoji: "💡",
-    desc: "Оптическая иллюзия на глухом фасаде старинного здания на улице Красноармейской.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Optical_art_mural_Ekaterinburg.jpg/640px-Optical_art_mural_Ekaterinburg.jpg"
-  },
-  {
-    name: "Скульптура «Берлинский медведь»",
-    coords: [56.8405, 60.5890],
-    tag: "Паблик-арт",
-    emoji: "🐻",
-    desc: "Ярко расписанный дружелюбный медведь Buddy Bear у здания консульств.",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Buddy_Bear_Yekaterinburg.jpg/640px-Buddy_Bear_Yekaterinburg.jpg"
+function renderChatList(map){
+  const el = document.getElementById('chatList');
+  const names = Object.keys(map);
+  if (!names.length){
+    el.innerHTML = '<div class="empty-hint">Пока нет диалогов.<br>Найдите пользователя по нику, чтобы начать переписку.</div>';
+    return;
   }
-];
-
-// ФОТО v8 — реальные внешние фотографии.
-// Для известных объектов используем проверенные прямые изображения.
-// Для остальных сначала пробуем исходный URL из карточки.
-const photoDirect = {
-  "Памятник Клавиатуре": "https://mindtrip.ai/cdn-cgi/image/format%3Dwebp%2Cw%3D1200/https%3A/images.mindtrip.ai/attractions/1c80/7bbb/4500/e74f/043d/0670/a5b1/26ed",
-  "Памятник The Beatles": "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%9F%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA%20The%20Beatles%20(%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3).jpg?width=900",
-  "Человек-невидимка": "https://images.a-a-ah.ru/uploads/items/2527/33057/large_4d42f6707bb55825658371.jpg",
-  "Банка сгущенки и супа Campbell's": "https://www.justmedia.ru/upload/news/67/0e/670e096c76b76687152577_1400_1200.jpg",
-  "Индустриальный младенец": "https://cdn.bg.ru/bg.ru/post_image-image/6QEejGp_A7y_z1wKF5PL1g-original_opt.webp",
-  "Памятник Гене Букину": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/22/b0/1b/88/caption.jpg?h=1100&s=1&w=1100",
-  "Памятник Высоцкому и Влади": "https://dimg04.c-ctrip.com/images/02Y0j12000gee4orb0C90_R_1080_808_Q90.jpg",
-  "Памятник Влюбленным": "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3%2C_%D1%83%D0%BB.%D0%92%D0%B0%D0%B9%D0%BD%D0%B5%D1%80%D0%B0%2C_%D1%81%D0%BA%D1%83%D0%BB%D1%8C%D0%BF%D1%82%D1%83%D1%80%D0%B0_%D0%92%D0%BB%D1%8E%D0%B1%D0%BB%D1%91%D0%BD%D0%BD%D1%8B%D0%B5%2C_13.05.2015_-_panoramio.jpg?width=900",
-  "Каслинский чугунный павильон": "https://cdn.ruwiki.ru/commonswiki/files/thumb/5/59/Kasli_Cast_Iron_Pavilion_-_10.jpeg/640px-Kasli_Cast_Iron_Pavilion_-_10.jpeg",
-  "Памятник Майклу Джексону": "https://www.shkolazhizni.ru/img/content/i216/216599_or.jpg",
-  "Дом Севастьянова": "https://vashehobbyrf.ru/imgfiles/dom-sevastyanova02.jpg",
-  "Скульптура «Пассажиры»": "https://panevin.ru/uploads/photo/2018/skulptura_passazhiri_small.webp",
-  "Памятник Первому паровозу": "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%9F%D0%B0%D1%80%D0%BE%D0%B2%D0%BE%D0%B7%D0%A7%D0%B5%D1%80%D0%B5%D0%BF%D0%B0%D0%BD%D0%BE%D0%B2%D1%8B%D1%85%D0%95%D0%B1%D1%83%D1%80%D0%B3.jpg?width=900"
-};
-function esc(str){return String(str).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function fallbackSvg(item){
-  return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520"><rect width="800" height="520" fill="#ffd0e1"/><text x="400" y="245" text-anchor="middle" font-size="92">'+(item.emoji||'📍')+'</text><text x="400" y="340" text-anchor="middle" font-family="Arial" font-size="28" font-weight="700" fill="#7b173e">Фото не удалось загрузить</text></svg>');
+  el.innerHTML = '';
+  names.forEach(name=>{
+    const row = document.createElement('div');
+    row.className = 'person-row' + (name === currentPartner ? ' active' : '');
+    row.innerHTML = `
+      <div class="avatar" style="background:${colorFor(name)}">${initialFor(name)}</div>
+      <div><div class="person-name">${escapeHtml(name)}</div></div>`;
+    row.addEventListener('click', ()=>openChat(name));
+    el.appendChild(row);
+  });
 }
 
-const PHOTO_PLACEHOLDER = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700"><rect width="1200" height="700" fill="#ffd1e6"/><text x="600" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="42" fill="#7a3155">Фото временно недоступно</text><text x="600" y="385" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#9b5274">Екатеринбург</text></svg>');
-function photoCandidates(item){
-  const arr=[];
-  const add=(url)=>{
-    if(!url || typeof url!=='string') return;
-    const u=url.trim();
-    if(!u || arr.includes(u)) return;
-    // Только прямые изображения. Страницы сайтов и поисковые запросы не показываем.
-    if(/\.(?:html?|php)(?:[?#]|$)/i.test(u)) return;
-    if(/\/(?:search|reviews?|maps|location)(?:[/?]|$)/i.test(u)) return;
-    arr.push(u);
+/* =========================================================
+   ПОИСК ПОЛЬЗОВАТЕЛЕЙ
+   ========================================================= */
+function listenAllUsers(){
+  if (searchUsersRef) searchUsersRef.off();
+  searchUsersRef = db.ref('users');
+  searchUsersRef.on('value', snap=>{
+    const val = snap.val() || {};
+    allUsers = Object.keys(val).filter(n => n !== currentUser);
+  });
+}
+
+const searchInput = document.getElementById('searchInput');
+const searchResultsEl = document.getElementById('searchResults');
+const searchClear = document.getElementById('searchClear');
+
+searchInput.addEventListener('input', ()=>{
+  const q = searchInput.value.trim().toLowerCase();
+  searchClear.classList.toggle('show', q.length > 0);
+  if (!q){ searchResultsEl.classList.add('hidden'); searchResultsEl.innerHTML=''; return; }
+  const matches = allUsers.filter(n => n.toLowerCase().includes(q)).slice(0, 20);
+  searchResultsEl.classList.remove('hidden');
+  if (!matches.length){
+    searchResultsEl.innerHTML = '<div class="search-empty">Никого не найдено</div>';
+    return;
+  }
+  searchResultsEl.innerHTML = '';
+  matches.forEach(name=>{
+    const row = document.createElement('div');
+    row.className = 'search-result';
+    row.innerHTML = `
+      <div class="avatar" style="background:${colorFor(name)}">${initialFor(name)}</div>
+      <div class="person-name">${escapeHtml(name)}</div>`;
+    row.addEventListener('click', ()=>{
+      openChat(name);
+      // очистить поиск после выбора
+      searchInput.value = '';
+      searchClear.classList.remove('show');
+      searchResultsEl.classList.add('hidden');
+      searchResultsEl.innerHTML = '';
+    });
+    searchResultsEl.appendChild(row);
+  });
+});
+
+searchClear.addEventListener('click', ()=>{
+  searchInput.value = '';
+  searchClear.classList.remove('show');
+  searchResultsEl.classList.add('hidden');
+  searchResultsEl.innerHTML = '';
+  searchInput.focus();
+});
+
+/* =========================================================
+   ОТКРЫТИЕ ЧАТА
+   ========================================================= */
+function openChat(partner){
+  if (messagesRef && messagesCb) messagesRef.off('value', messagesCb);
+
+  currentPartner = partner;
+  const chatId = chatIdFor(currentUser, partner);
+
+  document.getElementById('chatHeaderEmpty').classList.add('hidden');
+  document.getElementById('chatActive').classList.remove('hidden');
+  document.getElementById('chatTitle').textContent = partner;
+  const pAv = document.getElementById('partnerAvatar');
+  pAv.textContent = initialFor(partner);
+  pAv.style.background = colorFor(partner);
+
+  document.getElementById('appScreen').classList.add('chat-open');
+
+  // пометить все входящие как прочитанные при открытии
+  markChatAsRead(chatId);
+
+  messagesRef = db.ref('chats/' + chatId + '/messages').orderByChild('ts');
+  messagesCb = snap => {
+    renderMessages(snap.val() || {});
+    markChatAsRead(chatId);
   };
-  if(photoDirect[item.name]) add(photoDirect[item.name]);
-  const ex=externalPhotos[item.name];
-  (Array.isArray(ex) ? ex : [ex]).forEach(add);
-  if(item.img && /\.(?:jpe?g|png|webp|gif|avif)(?:[?#]|$)/i.test(item.img)) add(item.img);
-  // Для хостингов, запрещающих hotlink с file://, добавляем два image-only прокси.
-  const direct=[...arr];
-  direct.forEach(u=>{
-    const encoded=encodeURIComponent(u);
-    add('https://images.weserv.nl/?url='+encoded+'&w=1400&q=90');
-    add('https://wsrv.nl/?url='+encoded+'&w=1400&q=90');
-    add('https://wsrv.nl/?url='+encodeURIComponent(u)+'&output=webp&w=1400&q=88');
-  });
-  return [...new Set(arr)];
+  messagesRef.on('value', messagesCb);
+
+  document.querySelectorAll('#chatList .person-row').forEach(r=>r.classList.remove('active'));
 }
 
-const photoCache = new Map();
-function loadImageVerified(url){
-  if(photoCache.has(url)) return photoCache.get(url);
-  const promise=new Promise((resolve,reject)=>{
-    const probe=new Image();
-    let finished=false;
-    const finish=(ok)=>{
-      if(finished) return;
-      finished=true;
-      clearTimeout(timer);
-      probe.onload=null; probe.onerror=null;
-      ok ? resolve(url) : reject(new Error('image failed'));
-    };
-    const timer=setTimeout(()=>finish(false),15000);
-    probe.onload=async ()=>{
-      try{ if(probe.decode) await probe.decode(); }catch(e){}
-      finish(probe.naturalWidth>0 && probe.naturalHeight>0);
-    };
-    probe.onerror=()=>finish(false);
-    probe.referrerPolicy='no-referrer';
-    probe.src=url;
+async function markChatAsRead(chatId){
+  if (!currentPartner) return;
+  const snap = await db.ref('chats/' + chatId + '/messages').get();
+  if (!snap.exists()) return;
+  const updates = {};
+  snap.forEach(child=>{
+    const m = child.val();
+    if (m && m.from !== currentUser && !m.readAt){
+      updates[child.key + '/readAt'] = Date.now();
+    }
   });
-  photoCache.set(url,promise);
-  return promise;
-}
-
-async function attachPhotoFallback(img,item,candidates){
-  if(!img) return;
-  for(const url of candidates){
-    try{
-      const good=await loadImageVerified(url);
-      img.src=good;
-      img.classList.add('photo-ready');
-      return;
-    }catch(e){}
+  if (Object.keys(updates).length){
+    try{ await db.ref('chats/' + chatId + '/messages').update(updates); }catch(e){}
   }
-  img.src=fallbackSvg(item);
 }
-const markers=[];
-arts.forEach(item=>{
-  const marker=L.marker(item.coords,{icon:createIcon(item.emoji)});
-  const candidates=photoCandidates(item);
-  const popupContent=`<div class="popup-box"><h3>${esc(item.name)}</h3><img class="popup-img" alt="${esc(item.name)}" loading="eager" referrerpolicy="no-referrer"><p>${esc(item.desc)}</p><span class="tag">${esc(item.tag)}</span></div>`;
-  marker.bindPopup(popupContent);
-  marker.on('popupopen',()=>{
-    const el=marker.getPopup().getElement();
-    const img=el&&el.querySelector('.popup-img');
-    if(img) attachPhotoFallback(img,item,candidates);
+
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  document.getElementById('appScreen').classList.remove('chat-open');
+});
+
+function renderMessages(map){
+  const el = document.getElementById('messages');
+  const items = Object.values(map).sort((a,b)=>a.ts - b.ts);
+  el.innerHTML = '';
+  let lastDay = null;
+  items.forEach(m=>{
+    const d = new Date(m.ts);
+    const dayKey = d.toDateString();
+    if (dayKey !== lastDay){
+      const div = document.createElement('div');
+      div.className = 'day-divider';
+      div.textContent = d.toLocaleDateString('ru-RU', {day:'numeric', month:'long'});
+      el.appendChild(div);
+      lastDay = dayKey;
+    }
+    const mine = m.from === currentUser;
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (mine ? 'mine' : 'theirs');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = `${escapeHtml(m.text)}<span class="meta">${d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}${ticksHtml(mine, m)}</span>`;
+    row.appendChild(bubble);
+    el.appendChild(row);
   });
-  marker._artName=item.name.toLowerCase();
-  marker.addTo(map); markers.push(marker);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* =========================================================
+   ОТПРАВКА
+   ========================================================= */
+async function sendCurrentMessage(){
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !currentPartner) return;
+  input.value = '';
+  const chatId = chatIdFor(currentUser, currentPartner);
+  await db.ref('chats/' + chatId + '/messages').push({
+    from: currentUser,
+    text: text,
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+  await db.ref('userChats/' + currentUser + '/' + currentPartner).set(true);
+  await db.ref('userChats/' + currentPartner + '/' + currentUser).set(true);
+}
+
+document.getElementById('sendBtn').addEventListener('click', sendCurrentMessage);
+document.getElementById('msgInput').addEventListener('keydown', e=>{
+  if (e.key === 'Enter'){ e.preventDefault(); sendCurrentMessage(); }
 });
 </script>
 </body>
